@@ -141,3 +141,11 @@
   top: 12px;
   align-self: start;
 }
+
+.templateGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin: 24px 0; }
+.templateCard { text-align: left; border: 1px solid #dce3ec; border-radius: 16px; padding: 16px; background: white; cursor: pointer; overflow: hidden; }
+.templateCard:hover { border-color: #2585bd; box-shadow: 0 8px 24px #12345618; }
+.templateCard strong { display: block; margin-top: 16px; font-size: 18px; }
+.templateCard p { color: #637084; line-height: 1.6; }
+.thumbnail { height: 290px; overflow: hidden; background: #eef2f7; border-radius: 8px; pointer-events: none; }
+.thumbnailPage { width: 750px; transform: scale(.28); transform-origin: top left; }

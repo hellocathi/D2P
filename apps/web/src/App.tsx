@@ -52,6 +52,7 @@ const initial: MaterialPack = {
   ],
   assets: {},
 };
+const templatePreview = parseMarkdown(initial.documents[0]!.source);
 const labels = {
   pending: "等待",
   parsing: "解析",
@@ -71,7 +72,7 @@ export function App() {
   const recordedIds = useRef(new Set<string>());
   const failedAttempts = useRef(new Set<string>());
   const [index, setIndex] = useState(0);
-  const [tab, setTab] = useState("制作记录");
+  const [tab, setTab] = useState("首页");
   const [creations, setCreations] = useState<Creation[]>([]);
   const [activeCreation, setActiveCreation] = useState<string | null>(null);
   const [selected, setSelected] = useState(new Set<string>());
@@ -380,7 +381,7 @@ export function App() {
       setIndex(0);
       setActiveCreation(null);
       await del("d2p-active-creation");
-      setTab("制作预览");
+      setTab("预览");
     });
   }
   async function persistEditing(all = false) {
@@ -391,22 +392,21 @@ export function App() {
           pack.assets,
           format,
           scale,
-          !all && activeCreation
+          d === doc && activeCreation
             ? creations.find((c) => c.id === activeCreation)
             : undefined,
         ),
       );
       setCreations(await saveCreations(rows));
-      if (!all) {
-        setActiveCreation(rows[0]!.id);
-        await set("d2p-active-creation", rows[0]!.id);
-      }
+      const savedCurrent = rows[all ? index : 0]!;
+      setActiveCreation(savedCurrent.id);
+      await set("d2p-active-creation", savedCurrent.id);
       setNotice(
         all
           ? `已保存 ${rows.length} 份作品`
-          : "作品已保存，可在制作记录中生成 URL",
+          : "作品已保存，可在素材列表中生成 URL",
       );
-      setTab("制作记录");
+      setTab("素材列表");
     });
   }
   async function openCreation(c: Creation) {
@@ -419,15 +419,19 @@ export function App() {
     setFormat(c.format);
     setActiveCreation(c.id);
     await set("d2p-active-creation", c.id);
-    setTab("制作预览");
+    setTab("预览");
     setNotice("");
   }
-  async function newCreation() {
-    setPack(structuredClone(initial));
+  async function newCreation(templateId: keyof typeof templates = "classic") {
+    const fresh = structuredClone(initial);
+    fresh.documents[0]!.templateId = templateId;
+    setPack(fresh);
+    setScale(2);
+    setFormat("png");
     setIndex(0);
     setActiveCreation(null);
     await del("d2p-active-creation");
-    setTab("制作预览");
+    setTab("预览");
     setNotice("");
   }
   async function generateUrls(rows: Creation[]) {
@@ -468,7 +472,7 @@ export function App() {
       setNotice(
         `正在为 ${pending.length} 份作品生成 URL，完成后可在记录中复制或下载`,
       );
-      setTab("制作记录");
+      setTab("素材列表");
       await manager.run();
     });
   }
@@ -524,7 +528,7 @@ export function App() {
         <span>{pack.documents.length} 篇素材</span>
       </header>
       <nav className={css.nav}>
-        {["制作记录", "制作预览", "导出进度", "导出历史"].map((name) => (
+        {["首页", "素材列表", "预览", "导出进度", "导出历史"].map((name) => (
           <button
             key={name}
             onClick={() => setTab(name)}
@@ -541,7 +545,27 @@ export function App() {
             {error}
           </div>
         )}
-        <div className={css.toolbar}>
+        {tab === "首页" && (
+          <section>
+            <h2>选择模板，开始制作</h2>
+            <div className={css.templateGrid}>
+              {Object.entries(templates).map(([id, template]) => (
+                <button className={css.templateCard} key={id} disabled={locked}
+                  onClick={() => void newCreation(id as keyof typeof templates)}>
+                  <div className={css.thumbnail} aria-hidden="true">
+                    <div className={css.thumbnailPage}>
+                      {templatePreview.ok && <PageRenderer page={templatePreview.page}
+                        templateId={id as keyof typeof templates} resolve={() => ""} />}
+                    </div>
+                  </div>
+                  <strong>{template.name}</strong>
+                  <p>{template.description}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {tab !== "首页" && <div className={css.toolbar}>
           <button
             disabled={locked}
             onClick={() =>
@@ -592,7 +616,7 @@ export function App() {
                 setIndex(0);
                 setActiveCreation(null);
                 await del("d2p-active-creation");
-                setTab("制作预览");
+                setTab("预览");
               })
             }
           >
@@ -629,8 +653,8 @@ export function App() {
           <button disabled={locked} onClick={() => void persistEditing(true)}>
             保存全部素材
           </button>
-        </div>
-        {tab === "制作记录" && (
+        </div>}
+        {tab === "素材列表" && (
           <CreationLibrary
             rows={creations}
             selected={selected}
@@ -657,14 +681,14 @@ export function App() {
                 "creation-urls.csv",
               )
             }
-            onNew={() => void newCreation()}
+            onNew={() => setTab("首页")}
             query={creationQuery}
             onQuery={setCreationQuery}
             locked={locked}
             tasks={manager.tasks}
           />
         )}
-        {tab === "制作预览" && (
+        {tab === "预览" && (
           <>
             <div className={css.toolbar}>
               <select
@@ -710,6 +734,7 @@ export function App() {
               >
                 保存制作
               </button>
+              <span>{activeCreation ? "保存将更新当前素材，不新增记录" : "首次保存将新增素材记录"}</span>
             </div>
             <div className={css.editor}>
               <div>

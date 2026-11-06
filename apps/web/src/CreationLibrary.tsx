@@ -46,17 +46,17 @@ export function CreationLibrary({
     );
   return (
     <>
-      <h2>制作记录（{rows.length}）</h2>
+      <h2>素材列表（{rows.length}）</h2>
       <p className={css.muted}>
         编辑后保存到这里。选择作品生成
-        URL，图片下载单独操作。制作记录保存在当前浏览器。
+        URL，图片下载单独操作。素材列表保存在当前浏览器。
       </p>
       <div className={css.toolbar}>
         <button disabled={locked} onClick={onNew}>
           新建制作
         </button>
         <input
-          aria-label="搜索制作记录"
+          aria-label="搜索素材列表"
           placeholder="搜索作品标题或文件名"
           value={query}
           onChange={(e) => onQuery(e.target.value)}
@@ -64,7 +64,7 @@ export function CreationLibrary({
         <label>
           <input
             type="checkbox"
-            aria-label="全选制作记录"
+            aria-label="全选素材列表"
             checked={
               visible.length > 0 && visible.every((c) => selected.has(c.id))
             }
@@ -100,7 +100,7 @@ export function CreationLibrary({
         </button>
       </div>
       {!visible.length && (
-        <p>暂无制作记录。请新建或导入素材，在制作预览页保存。</p>
+        <p>暂无素材。请新建或导入素材，在预览页保存。</p>
       )}
       <div className={css.grid}>
         {visible.map((c) => {
@@ -172,7 +172,7 @@ export function CreationLibrary({
                 <button
                   disabled={locked}
                   onClick={() => onOpen(c)}
-                  title="打开制作预览"
+                  title="打开预览"
                 >
                   <img loading="lazy" src={c.exported.url} alt={c.title} />
                 </button>
