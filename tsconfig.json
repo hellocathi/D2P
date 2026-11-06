@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@d2p/contracts": ["packages/contracts/src/index.ts"],
+      "@d2p/markdown": ["packages/markdown/src/index.ts"]
+    },
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "packages/**/*.ts",
+    "tools/**/*.ts",
+    "vitest.config.ts",
+    "packages/**/*.tsx",
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "tests/**/*.ts"
+  ]
+}

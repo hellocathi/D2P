@@ -1,0 +1,137 @@
+.shell {
+  min-height: 100vh;
+  background: #f1f5f9;
+  color: #1e293b;
+  font:
+    15px/1.5 system-ui,
+    sans-serif;
+}
+.header {
+  background: #0f3445;
+  color: white;
+  padding: 20px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.header h1 {
+  font-size: 24px;
+  margin: 0;
+}
+.nav {
+  display: flex;
+  gap: 8px;
+  padding: 16px 32px;
+  background: white;
+  border-bottom: 1px solid #dde5eb;
+}
+.shell button,
+.button {
+  background: #176b87;
+  color: white;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font: inherit;
+}
+.shell button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.main {
+  padding: 24px 32px;
+}
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+.card {
+  background: white;
+  border: 1px solid #dce5ec;
+  border-radius: 12px;
+  padding: 20px;
+}
+.editor {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.4fr);
+  gap: 20px;
+}
+.editor textarea {
+  width: 100%;
+  min-height: 650px;
+  font: 14px/1.7 monospace;
+  padding: 16px;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  resize: vertical;
+}
+.preview {
+  overflow: auto;
+  max-height: 80vh;
+  background: #dde5eb;
+  padding: 16px;
+}
+.error {
+  background: #fff1f2;
+  color: #9f1239;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+.shell table {
+  border-collapse: collapse;
+  width: 100%;
+  background: white;
+}
+.shell td,
+.shell th {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  word-break: break-all;
+}
+.shell progress {
+  width: 100%;
+  height: 22px;
+}
+.muted {
+  color: #64748b;
+}
+.result img {
+  max-width: 180px;
+  max-height: 220px;
+  object-fit: contain;
+  object-position: top;
+}
+.result a {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.shell input[type="file"] {
+  max-width: 230px;
+}
+.shell select {
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+@media (max-width: 900px) {
+  .editor {
+    grid-template-columns: 1fr;
+  }
+  .main {
+    padding: 16px;
+  }
+  .nav {
+    flex-wrap: wrap;
+  }
+}
