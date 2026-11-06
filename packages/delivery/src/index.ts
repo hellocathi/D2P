@@ -1,8 +1,10 @@
+import type { PosterData } from "@d2p/contracts";
 import JSZip from "jszip";
-import { isPackagePath } from "@d2p/contracts";
+import { posterProjectSchema, isPackagePath } from "@d2p/contracts";
 export interface Material {
   name: string;
   source: string;
+  poster?: PosterData;
   templateId?: import("../../renderer/src/templates").TemplateId;
 }
 export interface MaterialPack {
@@ -75,6 +77,17 @@ export async function importFiles(files: File[]): Promise<MaterialPack> {
       if (mime) pack.assets[name] = new Blob([blob], { type: mime });
     }
   }
+  const manifest = entries.get("d2p.project.json");
+  if (manifest) {
+    if (manifest.size > 5 * 1024 * 1024) throw Error("模板配置超出大小限制");
+    const config = posterProjectSchema.parse(JSON.parse(await manifest.text()));
+    for (const row of config.documents) {
+      const doc = pack.documents.find((d) => d.name === row.name);
+      if (!doc) throw Error("模板配置找不到对应 Markdown：" + row.name);
+      if (row.templateId) doc.templateId = row.templateId;
+      if (row.poster) doc.poster = row.poster;
+    }
+  }
   if (!pack.documents.length || pack.documents.length > 50)
     throw Error("请选择包含 1–50 篇 Markdown 的素材包");
   return pack;
@@ -142,4 +155,26 @@ export async function exportZip(
   }
   zip.file("results.csv", csv(rows));
   return zip.generateAsync({ type: "blob", compression: "STORE" });
+}
+
+export async function exportMaterialPack(pack: MaterialPack) {
+  const zip = new JSZip();
+  for (const doc of pack.documents) zip.file(doc.name, doc.source);
+  for (const [name, blob] of Object.entries(pack.assets)) zip.file(name, blob);
+  zip.file(
+    "d2p.project.json",
+    JSON.stringify(
+      {
+        version: 1,
+        documents: pack.documents.map((d) => ({
+          name: d.name,
+          ...(d.templateId ? { templateId: d.templateId } : {}),
+          ...(d.poster ? { poster: d.poster } : {}),
+        })),
+      },
+      null,
+      2,
+    ),
+  );
+  return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
 }

@@ -1,0 +1,361 @@
+.poster {
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  color: #153b78;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  background: #effaff;
+  background-size: 100% auto;
+  background-position: top center;
+  background-repeat: repeat-y;
+}
+.poster * {
+  box-sizing: border-box;
+}
+.poster h1,
+.poster h2,
+.poster h3,
+.poster p,
+.poster figure {
+  margin: 0;
+}
+.poster img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+.blue {
+  --ink: #173e83;
+  --accent: #94d9f5;
+  --soft: #eaf8fe;
+  --stroke: #315975;
+  --hot: #173e83;
+}
+.pink {
+  --ink: #ee5868;
+  --accent: #ffafb4;
+  --soft: #fff1ed;
+  --stroke: #ffb9bc;
+  --hot: #f65d68;
+  color: #4e4548;
+  background-color: #ffc2c4;
+}
+.top {
+  position: relative;
+  padding: 42px 38px 30px;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 1;
+}
+.eyebrow {
+  letter-spacing: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 16px !important;
+}
+.title {
+  font-size: 62px !important;
+  line-height: 1.12 !important;
+  font-weight: 900 !important;
+  color: var(--ink);
+  letter-spacing: -2px;
+  white-space: pre-wrap;
+}
+.subtitle {
+  font-size: 22px;
+  margin-top: 18px !important;
+  color: #486075;
+}
+.intro {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 30px 38px;
+  background: var(--accent);
+  border-top: 4px solid var(--stroke);
+  border-bottom: 4px solid var(--stroke);
+}
+.introText {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  font-size: 20px;
+}
+.introText strong {
+  display: block;
+  font-size: 27px;
+  margin-bottom: 10px;
+  color: var(--ink);
+}
+.hero {
+  width: 37%;
+  align-self: flex-end;
+  margin-top: -55px !important;
+  position: relative;
+  z-index: 2;
+}
+.hero img {
+  width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+}
+.emptyHero {
+  width: 180px;
+  height: 210px;
+  display: grid;
+  place-items: center;
+  border: 2px dashed rgba(23, 62, 131, 0.25);
+  border-radius: 90px 90px 24px 24px;
+  color: var(--ink);
+  font-size: 70px;
+  background: rgba(255, 255, 255, 0.3);
+}
+.slots {
+  padding: 32px 28px;
+  display: grid;
+  gap: 24px;
+}
+.card {
+  position: relative;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 25px 28px;
+  border-radius: 34px;
+  background: #fff;
+  border: 2px solid var(--stroke);
+  box-shadow: none;
+  min-width: 0;
+}
+.card h2 {
+  font-size: 27px;
+  color: var(--ink);
+  font-weight: 900;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+.card p {
+  font-size: 18px;
+  color: #4e6070;
+  white-space: pre-wrap;
+}
+.cardText {
+  flex: 1;
+  min-width: 0;
+}
+.icon {
+  width: 76px;
+  flex: 0 0 76px;
+  align-self: center;
+  color: var(--ink);
+}
+.symbol {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--soft);
+  font-size: 40px;
+  color: var(--ink);
+}
+.replace {
+  width: 100%;
+  border-radius: 14px;
+  object-fit: contain;
+}
+.stat {
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  padding: 35px 70px;
+  background: var(--accent);
+  border-top: 4px solid var(--stroke);
+  border-bottom: 4px solid var(--stroke);
+}
+.stat:before,
+.stat:after {
+  content: "+";
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 60px;
+  font-weight: 900;
+  line-height: 78px;
+  opacity: 0.65;
+  top: 70px;
+}
+.stat:before {
+  left: -18px;
+}
+.stat:after {
+  right: -18px;
+}
+.statTitle {
+  font-size: 24px;
+  font-weight: 700;
+}
+.statValue {
+  font-size: 78px;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.25;
+  white-space: pre-wrap;
+  margin: 12px 0 !important;
+}
+.stat p {
+  font-size: 21px;
+  white-space: pre-wrap;
+}
+.bar {
+  height: 30px;
+  margin: 25px 40px 0;
+  border: 2px solid #fff;
+  border-radius: 30px;
+  background: #ffffff99;
+  overflow: hidden;
+}
+.bar span {
+  display: block;
+  width: 72%;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 24px;
+}
+.tips {
+  padding: 32px 38px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.tips h2 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--ink);
+  font-size: 27px;
+}
+.tips h2:after {
+  content: "";
+  height: 3px;
+  background: var(--ink);
+  flex: 1;
+}
+.tips ul {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+}
+.tips li {
+  display: flex;
+  gap: 16px;
+  font-size: 22px;
+  margin: 12px 0;
+}
+.check {
+  color: var(--ink);
+  font-weight: 900;
+}
+.references {
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 22px 38px;
+  white-space: pre-wrap;
+  background: rgba(255, 255, 255, 0.45);
+}
+.footer {
+  padding: 25px 36px;
+  background: var(--ink);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  font-size: 28px;
+  font-weight: 700;
+}
+.logo {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+.pink .top {
+  border-radius: 0 0 40px 0;
+}
+.pink .title {
+  font-size: 52px !important;
+}
+.pink .intro {
+  border: 0;
+  background: linear-gradient(120deg, #fff6e8, #ffabb3);
+  flex-direction: row-reverse;
+}
+.pink .hero {
+  margin-top: -30px !important;
+}
+.pink .slots {
+  gap: 22px;
+  padding: 30px 20px;
+}
+.pink .card {
+  border-radius: 14px;
+  border: 0;
+  box-shadow: none;
+  align-items: flex-start;
+  padding: 25px;
+}
+.pink .card:nth-child(-n + 2) {
+  border-top: 6px solid #ff7181;
+}
+.pink .card h2 {
+  font-size: 30px;
+}
+.pink .card p {
+  font-size: 20px;
+}
+.pink .stat {
+  border-color: #ff8996;
+  background: linear-gradient(140deg, #fff8f2, #ffd4d6);
+  margin: 0 20px;
+  border-radius: 18px;
+  padding: 30px 60px;
+}
+.pink .statValue {
+  color: var(--hot);
+}
+.pink .stat:before,
+.pink .stat:after {
+  opacity: 0.12;
+}
+.pink .tips {
+  margin: 24px 20px 0;
+  border-radius: 15px;
+  background: #fff;
+}
+.pink .tips h2 {
+  justify-content: center;
+  font-size: 29px;
+  transform: rotate(-1deg);
+}
+.pink .tips h2:after {
+  display: none;
+}
+.pink .footer {
+  background: #ff7f8d;
+  font-size: 23px;
+}
+.pink .eyebrow:after {
+  content: "✦";
+  float: right;
+  color: #ef8fa1;
+  font-size: 25px;
+}
+.pink .icon {
+  order: 2;
+  width: 110px;
+  flex-basis: 110px;
+}

@@ -30,6 +30,16 @@ const card = (
   children,
 });
 export const TemplateRegistry = {
+  "poster-blue": {
+    name: "蓝色健康海报",
+    description: "整页背景、主视觉、四个白色内容坑位及重点信息",
+    compose: (s: Slots) => s.body,
+  },
+  "poster-pink": {
+    name: "粉色专题海报",
+    description: "粉色大背景、独立内容框、专题信息与资料区",
+    compose: (s: Slots) => s.body,
+  },
   classic: {
     name: "经典科普",
     description: "保留模块原始编排",
@@ -96,4 +106,8 @@ export function applyTemplate(
     else slots.body.push(node);
   }
   return { ...page, nodes: templates[id].compose(slots) };
+}
+
+export function isPosterTemplate(id: TemplateId) {
+  return id === "poster-blue" || id === "poster-pink";
 }

@@ -1,3 +1,6 @@
+import { PosterEditor } from "./PosterEditor";
+import { defaultPoster, type PosterData, type AssetRef } from "@d2p/contracts";
+import { isPosterTemplate } from "../../../packages/renderer/src/templates";
 import { templates } from "../../../packages/renderer/src/templates";
 import {
   LocalUploadAdapter,
@@ -14,6 +17,7 @@ import {
   csv,
   download,
   exportZip,
+  exportMaterialPack,
   importFiles,
   uploadPng,
   type MaterialPack,
@@ -85,6 +89,7 @@ export function App() {
               task.templateId,
               task.format,
               progress,
+              task.poster,
             );
           },
           upload(blob, _task, signal) {
@@ -175,6 +180,56 @@ export function App() {
     [doc, pack.assets],
   );
   const locked = busy || manager.running || !ready;
+  const posterData =
+    doc.poster ?? (parsed.ok ? defaultPoster(parsed.page) : undefined);
+  const posterMode = isPosterTemplate(doc.templateId ?? "classic");
+  function updatePoster(poster: PosterData) {
+    setPack({
+      ...pack,
+      documents: pack.documents.map((d, i) =>
+        i === index ? { ...d, poster } : d,
+      ),
+    });
+  }
+  async function uploadPoster(
+    file: File,
+    assign: (ref: AssetRef) => PosterData,
+  ) {
+    await action(async () => {
+      if (
+        !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
+        file.size > 10 * 1024 * 1024
+      )
+        throw Error("仅支持 10 MiB 内的 PNG/JPEG/WebP");
+      if (
+        Object.values(pack.assets).reduce((sum, b) => sum + b.size, 0) +
+          file.size >
+        100 * 1024 * 1024
+      )
+        throw Error("项目图片总量超过100 MiB，请拆分素材包");
+      const bitmap = await createImageBitmap(file);
+      try {
+        if (bitmap.width * bitmap.height > 16_000_000)
+          throw Error("图片总像素超过1600万");
+      } finally {
+        bitmap.close();
+      }
+      const path =
+        "poster-assets/" +
+        crypto.randomUUID() +
+        ({ "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp" }[
+          file.type
+        ] ?? ".png");
+      const poster = assign({ kind: "package", path });
+      setPack({
+        ...pack,
+        documents: pack.documents.map((d, i) =>
+          i === index ? { ...d, poster } : d,
+        ),
+        assets: { ...pack.assets, [path]: file },
+      });
+    });
+  }
   async function action(fn: () => Promise<void>) {
     setError("");
     setBusy(true);
@@ -228,6 +283,16 @@ export function App() {
           </div>
         )}
         <div className={css.toolbar}>
+          <button
+            disabled={locked}
+            onClick={() =>
+              void action(async () =>
+                download(await exportMaterialPack(pack), "d2p-materials.zip"),
+              )
+            }
+          >
+            导出可编辑素材包
+          </button>
           <label>
             导入文件 / ZIP{" "}
             <input
@@ -347,6 +412,7 @@ export function App() {
                       i === index
                         ? {
                             ...d,
+                            ...(posterData ? { poster: posterData } : {}),
                             templateId: e.target
                               .value as keyof typeof templates,
                           }
@@ -370,25 +436,37 @@ export function App() {
             </div>
             <div className={css.editor}>
               <div>
-                <label htmlFor="markdown">Markdown 配置</label>
-                <textarea
-                  id="markdown"
-                  value={doc.source}
-                  disabled={locked}
-                  onChange={(e) =>
-                    setPack({
-                      ...pack,
-                      documents: pack.documents.map((d, i) =>
-                        i === index ? { ...d, source: e.target.value } : d,
-                      ),
-                    })
-                  }
-                />
+                {posterMode && posterData ? (
+                  <PosterEditor
+                    data={posterData}
+                    onChange={updatePoster}
+                    onUpload={(file, assign) => void uploadPoster(file, assign)}
+                    disabled={locked}
+                  />
+                ) : (
+                  <>
+                    <label htmlFor="markdown">Markdown 配置</label>
+                    <textarea
+                      id="markdown"
+                      value={doc.source}
+                      disabled={locked}
+                      onChange={(e) =>
+                        setPack({
+                          ...pack,
+                          documents: pack.documents.map((d, i) =>
+                            i === index ? { ...d, source: e.target.value } : d,
+                          ),
+                        })
+                      }
+                    />
+                  </>
+                )}
               </div>
               <div className={css.preview}>
                 {parsed.ok ? (
                   <PageRenderer
                     page={parsed.page}
+                    poster={doc.poster}
                     templateId={doc.templateId ?? "classic"}
                     resolve={(ref) =>
                       ref.kind === "remote"

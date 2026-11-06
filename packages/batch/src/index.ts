@@ -1,3 +1,4 @@
+import type { PosterData } from "@d2p/contracts";
 import type { TemplateId } from "../../renderer/src/templates";
 export type Status =
   | "pending"
@@ -12,6 +13,7 @@ export interface Task {
   id: string;
   name: string;
   source: string;
+  poster?: PosterData;
   templateId?: TemplateId;
   format?: "png" | "jpeg";
   status: Status;
@@ -71,6 +73,7 @@ export class BatchManager<P> {
     inputs: {
       name: string;
       source: string;
+      poster?: PosterData;
       templateId?: TemplateId;
       format?: "png" | "jpeg";
     }[],

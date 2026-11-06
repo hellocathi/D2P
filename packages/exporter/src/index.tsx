@@ -1,3 +1,4 @@
+import { posterSchema, type PosterData } from "@d2p/contracts";
 import type { TemplateId } from "../../renderer/src/templates";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
@@ -41,8 +42,10 @@ export async function exportPng(
   templateId: TemplateId = "classic",
   format: "png" | "jpeg" = "png",
   progress: (value: number) => void = () => {},
+  poster?: PosterData,
 ): Promise<Blob> {
   pageSchema.parse(page);
+  if (poster) posterSchema.parse(poster);
   signal?.throwIfAborted();
   const host = document.createElement("div");
   host.dataset.exportHost = "true";
@@ -58,14 +61,19 @@ export async function exportPng(
   try {
     flushSync(() =>
       root.render(
-        <PageRenderer page={page} resolve={resolve} templateId={templateId} />,
+        <PageRenderer
+          page={page}
+          resolve={resolve}
+          templateId={templateId}
+          poster={poster}
+        />,
       ),
     );
     const element = host.firstElementChild as HTMLElement;
     await deadline(document.fonts.ready, 15000, "字体加载");
     if (!document.fonts.check("18px Arial")) throw Error("字体不可用");
     const urls = new Set<string>();
-    for (const el of Array.from(element.querySelectorAll("*"))) {
+    for (const el of [element, ...Array.from(element.querySelectorAll("*"))]) {
       const bg = getComputedStyle(el).backgroundImage;
       for (const match of bg.matchAll(/url\(["']?(.*?)["']?\)/g))
         if (match[1]) urls.add(match[1]);

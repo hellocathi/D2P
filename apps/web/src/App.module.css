@@ -65,7 +65,7 @@
   grid-template-columns: minmax(300px, 1fr) minmax(400px, 1.4fr);
   gap: 20px;
 }
-.editor textarea {
+.editor > div > textarea {
   width: 100%;
   min-height: 650px;
   font: 14px/1.7 monospace;
@@ -134,4 +134,10 @@
   .nav {
     flex-wrap: wrap;
   }
+}
+
+.preview {
+  position: sticky;
+  top: 12px;
+  align-self: start;
 }

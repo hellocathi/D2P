@@ -1,3 +1,5 @@
+import { Poster } from "./Poster";
+import type { PosterData } from "@d2p/contracts";
 import { applyTemplate, type TemplateId } from "./templates";
 export * from "./templates";
 import { createElement, type CSSProperties, type ReactNode } from "react";
@@ -293,11 +295,22 @@ export function PageRenderer({
   page: input,
   resolve,
   templateId = "classic",
+  poster,
 }: {
   page: PageSchema;
   resolve: AssetResolver;
   templateId?: TemplateId;
+  poster?: PosterData | undefined;
 }) {
+  if (templateId === "poster-blue" || templateId === "poster-pink")
+    return (
+      <Poster
+        page={input}
+        data={poster}
+        resolve={resolve}
+        pink={templateId === "poster-pink"}
+      />
+    );
   const page = applyTemplate(input, templateId);
   return (
     <article
