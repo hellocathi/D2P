@@ -8,7 +8,7 @@
 
 上传API：POST /api/uploads，multipart字段file，PNG或JPEG，最大20MiB。返回key和url。本地内容哈希文件名使相同文件重复上传不会增加多个副本。图片持久保存，不自动删除；保留期限和清理策略由部署者制定。
 
-开发时API运行在3001，npm run dev启动Vite并代理/api及/uploads。使用默认PUBLIC_BASE_URL时，返回图片URL指向3001。
+开发时 npm run dev 同时启动API和Vite，默认端口3001和5173；图片URL默认指向Vite的同源代理，API与图片下载均经过同源入口。可使用PORT与DEV_PORT调整两个端口，PUBLIC_BASE_URL可显式覆盖。不要在同一端口同时运行生产API和开发API。
 
 微前端使用apps/web/src/mount.tsx的mount(container)，返回卸载函数。宿主需要支持ESM、React和CSS Modules构建；API需同源代理。组件样式限制在根容器，卸载时取消任务并释放素材Object URL。html2canvas当前调用完成后才能最终释放离屏容器。
 

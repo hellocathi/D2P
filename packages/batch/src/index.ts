@@ -13,6 +13,13 @@ export interface Task {
   id: string;
   name: string;
   source: string;
+  title?: string;
+  scale?: number;
+  batchId?: string;
+  creationId?: string;
+  creationRevision?: number;
+  createdAt?: string;
+  completedAt?: string;
   poster?: PosterData;
   templateId?: TemplateId;
   format?: "png" | "jpeg";
@@ -73,6 +80,9 @@ export class BatchManager<P> {
     inputs: {
       name: string;
       source: string;
+      creationId?: string;
+      creationRevision?: number;
+      scale?: number;
       poster?: PosterData;
       templateId?: TemplateId;
       format?: "png" | "jpeg";
@@ -82,7 +92,11 @@ export class BatchManager<P> {
     if (inputs.length > 50) throw Error("每批最多 50 篇");
     for (const t of this.tasks)
       void this.artifacts.delete(t.id).catch(() => {});
+    const batchId = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
     this.tasks = inputs.map((v) => ({
+      batchId,
+      createdAt,
       ...v,
       id: crypto.randomUUID(),
       status: "pending",
@@ -158,6 +172,7 @@ export class BatchManager<P> {
           const url = await this.pipeline.upload(blob, task, signal);
           signal.throwIfAborted();
           task.url = url;
+          task.completedAt = new Date().toISOString();
           task.status = "success";
           task.progress = 100;
           await this.artifacts.delete(task.id).catch(() => {

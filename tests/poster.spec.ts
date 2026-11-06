@@ -1,3 +1,4 @@
+import { saveAndGenerate, saveAllAndGenerate } from "./helpers";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { PNG } from "pngjs";
@@ -7,7 +8,7 @@ test("poster slots, uploaded images, portable material pack, and exported geomet
   test.setTimeout(60000);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "编辑与预览", exact: true })
+    .getByRole("button", { name: "制作预览", exact: true })
     .first()
     .click();
   await page.getByLabel("选择模板").selectOption("poster-blue");
@@ -18,15 +19,11 @@ test("poster slots, uploaded images, portable material pack, and exported geomet
   await page
     .getByLabel("主视觉图片", { exact: true })
     .setInputFiles("examples/basic/assets/cover.png");
-  await expect(
-    page.getByRole("button", { name: "生成当前长图" }),
-  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "保存制作" })).toBeEnabled();
   await page
     .getByLabel("坑位 2 图片", { exact: true })
     .setInputFiles("examples/basic/assets/cover.png");
-  await expect(
-    page.getByRole("button", { name: "生成当前长图" }),
-  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "保存制作" })).toBeEnabled();
   await page
     .getByText("图片铺满坑位内部（隐藏该坑位文字）", { exact: true })
     .nth(1)
@@ -52,7 +49,7 @@ test("poster slots, uploaded images, portable material pack, and exported geomet
     .getByLabel("导入素材", { exact: true })
     .setInputFiles({ name: "saved.zip", mimeType: "application/zip", buffer });
   await page
-    .getByRole("button", { name: "编辑与预览", exact: true })
+    .getByRole("button", { name: "制作预览", exact: true })
     .first()
     .click();
   await expect(page.getByLabel("选择模板")).toHaveValue("poster-pink");
@@ -67,12 +64,12 @@ test("poster slots, uploaded images, portable material pack, and exported geomet
     path: "test-results/poster-editor.png",
     fullPage: true,
   });
-  await page.getByRole("button", { name: "生成当前长图" }).click();
+  await saveAndGenerate(page);
   await expect(
     page.locator("td").filter({ hasText: /^成功 100%$/ }),
   ).toHaveCount(1, { timeout: 60000 });
   await expect(page.locator("[data-export-host]")).toHaveCount(0);
-  await page.getByRole("button", { name: "结果管理", exact: true }).click();
+  await page.getByRole("button", { name: "导出历史", exact: true }).click();
   const url = await page
     .locator("a")
     .filter({ hasText: /^http/ })
@@ -93,7 +90,7 @@ test("blue poster export preserves clean white slot backgrounds", async ({
   test.setTimeout(45000);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "编辑与预览", exact: true })
+    .getByRole("button", { name: "制作预览", exact: true })
     .first()
     .click();
   await page.getByLabel("选择模板").selectOption("poster-blue");
@@ -109,11 +106,11 @@ test("blue poster export preserves clean white slot backgrounds", async ({
     };
   });
   await page.getByLabel("导出倍率").selectOption("1");
-  await page.getByRole("button", { name: "生成当前长图" }).click();
+  await saveAndGenerate(page);
   await expect(
     page.locator("td").filter({ hasText: /^成功 100%$/ }),
   ).toHaveCount(1, { timeout: 30000 });
-  await page.getByRole("button", { name: "结果管理", exact: true }).click();
+  await page.getByRole("button", { name: "导出历史", exact: true }).click();
   const url = await page
     .locator("a")
     .filter({ hasText: /^http/ })

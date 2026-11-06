@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Markdown 驱动的医疗健康内容长页面系统",
+  "description": "Markdown \u9a71\u52a8\u7684\u533b\u7597\u5065\u5eb7\u5185\u5bb9\u957f\u9875\u9762\u7cfb\u7edf",
   "engines": {
     "node": ">=22"
   },
@@ -18,7 +18,7 @@
     "build": "npm run build --workspace @d2p/contracts && npm run build --workspace @d2p/markdown && vite build --config apps/web/vite.config.ts && tsup apps/server/src/index.ts --format esm --out-dir apps/server/dist --external express --external multer",
     "validate": "node --import tsx tools/validate.ts",
     "check": "npm run typecheck && npm test && npm run build",
-    "dev": "vite --config apps/web/vite.config.ts",
+    "dev": "node --import tsx tools/dev.ts",
     "start": "node apps/server/dist/index.js",
     "test:e2e": "playwright test"
   },

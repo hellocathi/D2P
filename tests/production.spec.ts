@@ -1,3 +1,4 @@
+import { saveAndGenerate, saveAllAndGenerate } from "./helpers";
 import { test, expect } from "@playwright/test";
 import JSZip from "jszip";
 import { PNG } from "pngjs";
@@ -7,7 +8,7 @@ test("templates, 30 real captures, upload retry, ZIP and resource cleanup", asyn
 }) => {
   await page.goto("/");
   await page
-    .getByRole("button", { name: "编辑与预览", exact: true })
+    .getByRole("button", { name: "制作预览", exact: true })
     .first()
     .click();
   await page.getByLabel("选择模板").selectOption("journal");
@@ -61,9 +62,9 @@ test("templates, 30 real captures, upload retry, ZIP and resource cleanup", asyn
             );
     }).observe(document.body, { childList: true });
   });
-  await page.getByRole("button", { name: "批量生成全部" }).click();
+  await saveAllAndGenerate(page, 30);
   await expect(
-    page.getByRole("heading", { name: "批量生产 30 / 30" }),
+    page.getByRole("heading", { name: "导出进度 30 / 30" }),
   ).toBeVisible({ timeout: 180000 });
   await expect(
     page.locator("td").filter({ hasText: /^成功 100%$/ }),
@@ -77,10 +78,15 @@ test("templates, 30 real captures, upload retry, ZIP and resource cleanup", asyn
     await page.evaluate(() => document.documentElement.dataset.captures),
   ).toBe("30");
   await expect(page.locator("[data-export-host]")).toHaveCount(0);
-  await page.getByRole("button", { name: "结果管理", exact: true }).click();
+  await page.getByRole("button", { name: "导出历史", exact: true }).click();
   const links = page.locator("a").filter({ hasText: /^http/ });
   await expect(links).toHaveCount(30);
-  const url = await links.last().getAttribute("href");
+  const url = await page
+    .locator("[data-export-record]")
+    .filter({ hasText: "article-29.md" })
+    .locator("a")
+    .filter({ hasText: /^http/ })
+    .getAttribute("href");
   const response = await page.request.get(url!);
   expect(response.status()).toBe(200);
   const png = PNG.sync.read(await response.body());
@@ -99,7 +105,7 @@ test("templates, 30 real captures, upload retry, ZIP and resource cleanup", asyn
   expect(await zip.file("results.csv")!.async("string")).toContain(url!);
   await page.screenshot({ path: "test-results/results.png", fullPage: true });
   await page.reload();
-  await page.getByRole("button", { name: "结果管理", exact: true }).click();
+  await page.getByRole("button", { name: "导出历史", exact: true }).click();
   await expect(page.locator("a").filter({ hasText: /^http/ })).toHaveCount(30);
 });
 test("JPEG export and failed image release the offscreen renderer", async ({
@@ -116,11 +122,11 @@ test("JPEG export and failed image release the offscreen renderer", async ({
     },
   ]);
   await page.getByLabel("图片格式").selectOption("jpeg");
-  await page.getByRole("button", { name: "批量生成全部" }).click();
+  await saveAllAndGenerate(page, 1);
   await expect(
     page.locator("td").filter({ hasText: /^成功 100%$/ }),
   ).toHaveCount(1, { timeout: 30000 });
-  await page.getByRole("button", { name: "结果管理", exact: true }).click();
+  await page.getByRole("button", { name: "导出历史", exact: true }).click();
   await expect(page.locator("a").filter({ hasText: /^http/ })).toHaveAttribute(
     "href",
     /\.jpg$/,
@@ -135,10 +141,25 @@ test("JPEG export and failed image release the offscreen renderer", async ({
     },
   ]);
   await page.route("https://example.com/**", (route) => route.abort());
-  await page.getByRole("button", { name: "批量生成全部" }).click();
+  await saveAllAndGenerate(page, 2);
   await expect(
     page.locator("td").filter({ hasText: "图片加载失败" }),
   ).toHaveCount(1, { timeout: 30000 });
   await expect(page.locator("[data-export-host]")).toHaveCount(0);
 });
-test('font failure reports an error and removes the offscreen host', async ({page}) => {await page.goto('/');await expect(page.getByRole('button',{name:'批量生成全部'})).toBeEnabled();await page.evaluate(()=>Object.defineProperty(document.fonts,'check',{value:()=>false}));await page.getByRole('button',{name:'批量生成全部'}).click();await expect(page.locator('td').filter({hasText:'字体不可用'})).toHaveCount(1);await expect(page.locator('[data-export-host]')).toHaveCount(0)});
+test("font failure reports an error and removes the offscreen host", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("button", { name: "保存全部素材" }),
+  ).toBeEnabled();
+  await page.evaluate(() =>
+    Object.defineProperty(document.fonts, "check", { value: () => false }),
+  );
+  await saveAllAndGenerate(page, 1);
+  await expect(
+    page.locator("td").filter({ hasText: "字体不可用" }),
+  ).toHaveCount(1);
+  await expect(page.locator("[data-export-host]")).toHaveCount(0);
+});

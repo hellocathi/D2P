@@ -112,15 +112,45 @@ export async function uploadPng(blob: Blob, signal: AbortSignal) {
   return data.url;
 }
 export function csv(
-  rows: { name: string; url?: string; status: string; error?: string }[],
+  rows: {
+    name: string;
+    url?: string;
+    status: string;
+    error?: string;
+    title?: string;
+    exportedAt?: string | null;
+    templateId?: string;
+    format?: string;
+    scale?: number | null;
+  }[],
 ) {
   const cell = (s: string) =>
     '"' + (/^[\s]*[=+@-]/.test(s) ? "'" + s : s).replaceAll('"', '""') + '"';
   return (
     "\uFEFF" +
     [
-      ["文件", "状态", "URL", "错误"],
-      ...rows.map((r) => [r.name, r.status, r.url ?? "", r.error ?? ""]),
+      [
+        "文件",
+        "状态",
+        "URL",
+        "错误",
+        "标题",
+        "导出时间",
+        "模板",
+        "格式",
+        "倍率",
+      ],
+      ...rows.map((r) => [
+        r.name,
+        r.status,
+        r.url ?? "",
+        r.error ?? "",
+        r.title ?? "",
+        r.exportedAt ?? "",
+        r.templateId ?? "",
+        r.format ?? "",
+        r.scale ? String(r.scale) : "",
+      ]),
     ]
       .map((row) => row.map(cell).join(","))
       .join("\r\n")

@@ -1,3 +1,19 @@
+import { CreationLibrary } from "./CreationLibrary";
+import {
+  loadCreations,
+  saveCreations,
+  saveCreationExport,
+  saveCreationFailure,
+  snapshotCreation,
+  currentUrl,
+  type Creation,
+} from "../../../packages/delivery/src/creations";
+import {
+  loadHistory,
+  saveHistory,
+  recordFromTask,
+  type ExportRecord,
+} from "../../../packages/delivery/src/history";
 import { PosterEditor } from "./PosterEditor";
 import { defaultPoster, type PosterData, type AssetRef } from "@d2p/contracts";
 import { isPosterTemplate } from "../../../packages/renderer/src/templates";
@@ -49,8 +65,19 @@ const labels = {
 export function App() {
   const [pack, setPack] = useState(initial);
   const [ready, setReady] = useState(false);
+  const [history, setHistory] = useState<ExportRecord[]>([]);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyScope, setHistoryScope] = useState("all");
+  const recordedIds = useRef(new Set<string>());
+  const failedAttempts = useRef(new Set<string>());
   const [index, setIndex] = useState(0);
-  const [tab, setTab] = useState("工作台");
+  const [tab, setTab] = useState("制作记录");
+  const [creations, setCreations] = useState<Creation[]>([]);
+  const [activeCreation, setActiveCreation] = useState<string | null>(null);
+  const [selected, setSelected] = useState(new Set<string>());
+  const [creationQuery, setCreationQuery] = useState("");
+  const [notice, setNotice] = useState("");
+  const batchSources = useRef(new Map<string, Creation>());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [scale, setScale] = useState(2);
@@ -67,7 +94,11 @@ export function App() {
           parse(task) {
             const r = parseMarkdown(task.source, {
               file: task.name,
-              availableAssets: Object.keys(current.current.pack.assets),
+              availableAssets: Object.keys(
+                batchSources.current.get(
+                  `${task.creationId}@${task.creationRevision}`,
+                )?.assets ?? current.current.pack.assets,
+              ),
             });
             if (!r.ok)
               throw Error(
@@ -75,22 +106,37 @@ export function App() {
                   .map((d) => `${d.file}:${d.line} ${d.message}`)
                   .join("\n"),
               );
+            task.title = isPosterTemplate(task.templateId ?? "classic")
+              ? (task.poster?.title ?? r.page.metadata.title)
+              : r.page.metadata.title;
             return r.page;
           },
-          render(page, signal, task, progress) {
-            return exportPng(
-              page,
-              (ref) =>
-                ref.kind === "remote"
-                  ? ref.path
-                  : (urls.current[ref.path] ?? ""),
-              signal,
-              current.current.scale,
-              task.templateId,
-              task.format,
-              progress,
-              task.poster,
+          async render(page, signal, task, progress) {
+            const snapshot = batchSources.current.get(
+              `${task.creationId}@${task.creationRevision}`,
             );
+            const assets = snapshot?.assets ?? current.current.pack.assets;
+            const localUrls: Record<string, string> = {};
+            try {
+              for (const [name, blob] of Object.entries(assets))
+                localUrls[name] = URL.createObjectURL(blob);
+              return await exportPng(
+                page,
+                (ref) =>
+                  ref.kind === "remote"
+                    ? ref.path
+                    : (localUrls[ref.path] ?? ""),
+                signal,
+                task.scale ?? current.current.scale,
+                task.templateId,
+                task.format,
+                progress,
+                task.poster,
+              );
+            } finally {
+              for (const url of Object.values(localUrls))
+                URL.revokeObjectURL(url);
+            }
           },
           upload(blob, _task, signal) {
             return (
@@ -112,6 +158,52 @@ export function App() {
     () =>
       manager.subscribe(() => {
         refresh((x) => x + 1);
+        for (const task of manager.tasks) {
+          const key = task.id + "@" + task.attempt;
+          if (
+            task.creationId &&
+            task.creationRevision &&
+            ["failed", "cancelled"].includes(task.status) &&
+            !failedAttempts.current.has(key)
+          ) {
+            failedAttempts.current.add(key);
+            void saveCreationFailure(
+              task.creationId,
+              task.creationRevision,
+              task.error ?? "用户取消",
+              task.status === "cancelled",
+            )
+              .then(setCreations)
+              .catch(() => setError("作品状态保存失败"));
+          }
+        }
+        const rows = manager.tasks
+          .map(recordFromTask)
+          .filter(
+            (row): row is ExportRecord =>
+              !!row && !recordedIds.current.has(row.id),
+          );
+        if (rows.length) {
+          for (const row of rows) recordedIds.current.add(row.id);
+          for (const row of rows) {
+            const task = manager.tasks.find((t) => t.id === row.id);
+            if (task?.creationId && task.creationRevision)
+              void saveCreationExport(
+                task.creationId,
+                task.creationRevision,
+                row.url,
+                row.exportedAt ?? new Date().toISOString(),
+              )
+                .then(setCreations)
+                .catch(() => setError("作品导出状态保存失败"));
+          }
+          void saveHistory(rows)
+            .then(setHistory)
+            .catch(() => {
+              for (const row of rows) recordedIds.current.delete(row.id);
+              setError("导出记录保存失败，请检查浏览器存储空间");
+            });
+        }
         void set("d2p-tasks", structuredClone(manager.tasks)).catch(() =>
           setError("任务记录保存失败"),
         );
@@ -123,26 +215,67 @@ export function App() {
     void Promise.all([
       get<MaterialPack>("d2p-project"),
       get<Task[]>("d2p-tasks"),
+      loadHistory(),
+      loadCreations(),
+      get<string>("d2p-active-creation"),
+      get<Creation[]>("d2p-batch-snapshots"),
+      get<boolean>("d2p-creations-migrated"),
     ])
-      .then(([saved, tasks]) => {
-        if (live) {
-          if (saved?.documents?.length) setPack(saved);
-          if (tasks) {
-            manager.tasks = tasks.map((t) =>
-              [
-                "pending",
-                "parsing",
-                "rendering",
-                "capturing",
-                "uploading",
-              ].includes(t.status)
-                ? { ...t, status: "failed", error: "页面关闭中断，可重试" }
-                : t,
+      .then(
+        async ([
+          saved,
+          tasks,
+          previousHistory,
+          library,
+          active,
+          snapshots,
+          migrated,
+        ]) => {
+          if (snapshots)
+            batchSources.current = new Map(
+              snapshots.map((c) => [`${c.id}@${c.revision}`, c]),
             );
-            refresh((x) => x + 1);
+          if (!migrated && !library.length && saved?.documents?.length) {
+            library = await saveCreations(
+              saved.documents.flatMap((d) => {
+                try {
+                  return [snapshotCreation(d, saved.assets, "png", 2)];
+                } catch {
+                  return [];
+                }
+              }),
+            );
           }
-        }
-      })
+          const oldResults = (tasks ?? [])
+            .map(recordFromTask)
+            .filter((row): row is ExportRecord => !!row);
+          const restored = oldResults.length
+            ? await saveHistory(oldResults)
+            : previousHistory;
+          if (live) {
+            await set("d2p-creations-migrated", true);
+            setCreations(library);
+            setActiveCreation(active ?? null);
+            setHistory(restored);
+            recordedIds.current = new Set(restored.map((row) => row.id));
+            if (saved?.documents?.length) setPack(saved);
+            if (tasks) {
+              manager.tasks = tasks.map((t) =>
+                [
+                  "pending",
+                  "parsing",
+                  "rendering",
+                  "capturing",
+                  "uploading",
+                ].includes(t.status)
+                  ? { ...t, status: "failed", error: "页面关闭中断，可重试" }
+                  : t,
+              );
+              refresh((x) => x + 1);
+            }
+          }
+        },
+      )
       .catch(() => {
         if (live) setError("无法读取本地项目");
       })
@@ -245,17 +378,142 @@ export function App() {
     await action(async () => {
       setPack(await importFiles(files));
       setIndex(0);
-      setTab("工作台");
+      setActiveCreation(null);
+      await del("d2p-active-creation");
+      setTab("制作预览");
     });
   }
-  function run(all: boolean) {
-    manager.add((all ? pack.documents : [doc]).map((d) => ({ ...d, format })));
-    setTab("批量生产");
-    void manager.run();
+  async function persistEditing(all = false) {
+    await action(async () => {
+      const rows = (all ? pack.documents : [doc]).map((d) =>
+        snapshotCreation(
+          d,
+          pack.assets,
+          format,
+          scale,
+          !all && activeCreation
+            ? creations.find((c) => c.id === activeCreation)
+            : undefined,
+        ),
+      );
+      setCreations(await saveCreations(rows));
+      if (!all) {
+        setActiveCreation(rows[0]!.id);
+        await set("d2p-active-creation", rows[0]!.id);
+      }
+      setNotice(
+        all
+          ? `已保存 ${rows.length} 份作品`
+          : "作品已保存，可在制作记录中生成 URL",
+      );
+      setTab("制作记录");
+    });
+  }
+  async function openCreation(c: Creation) {
+    setPack({
+      documents: [structuredClone(c.material)],
+      assets: { ...c.assets },
+    });
+    setIndex(0);
+    setScale(c.scale);
+    setFormat(c.format);
+    setActiveCreation(c.id);
+    await set("d2p-active-creation", c.id);
+    setTab("制作预览");
+    setNotice("");
+  }
+  async function newCreation() {
+    setPack(structuredClone(initial));
+    setIndex(0);
+    setActiveCreation(null);
+    await del("d2p-active-creation");
+    setTab("制作预览");
+    setNotice("");
+  }
+  async function generateUrls(rows: Creation[]) {
+    await action(async () => {
+      const pending = rows.filter((c) => !currentUrl(c));
+      if (!pending.length) {
+        setNotice("所选作品已有 URL，可直接下载图片或导出链接清单");
+        return;
+      }
+      const retryTasks = pending.map((c) =>
+        manager.tasks.find(
+          (t) =>
+            t.creationId === c.id &&
+            t.creationRevision === c.revision &&
+            ["failed", "cancelled"].includes(t.status),
+        ),
+      );
+      if (retryTasks.every((t) => !!t)) {
+        for (const t of retryTasks) manager.retry(t!.id);
+        setNotice("正在重试所选作品，已生成的图片将直接重试上传");
+        await manager.run();
+        return;
+      }
+      if (pending.length > 50) throw Error("每批最多导出 50 份作品");
+      batchSources.current = new Map(
+        pending.map((c) => [`${c.id}@${c.revision}`, structuredClone(c)]),
+      );
+      await set("d2p-batch-snapshots", pending);
+      manager.add(
+        pending.map((c) => ({
+          ...c.material,
+          creationId: c.id,
+          creationRevision: c.revision,
+          format: c.format,
+          scale: c.scale,
+        })),
+      );
+      setNotice(
+        `正在为 ${pending.length} 份作品生成 URL，完成后可在记录中复制或下载`,
+      );
+      setTab("制作记录");
+      await manager.run();
+    });
+  }
+  function resultRows(rows: Creation[]) {
+    return rows.flatMap((c) => {
+      const url = currentUrl(c);
+      return url
+        ? [
+            {
+              name: c.material.name,
+              title: c.title,
+              status: "success",
+              url,
+              format: c.format,
+              scale: c.scale,
+              templateId: c.material.templateId ?? "classic",
+              exportedAt: c.exported!.at,
+            },
+          ]
+        : [];
+    });
+  }
+  async function downloadCreation(c: Creation) {
+    await action(async () => {
+      const url = currentUrl(c);
+      if (!url) throw Error("请先生成该作品的 URL");
+      const response = await fetch(url, { signal: AbortSignal.timeout(60000) });
+      if (!response.ok) throw Error("图片下载失败");
+      download(
+        await response.blob(),
+        `${c.title.replace(/[\\/:*?"<>|]/g, "_")}.${c.format === "jpeg" ? "jpg" : "png"}`,
+      );
+    });
   }
   const completed = manager.tasks.filter((t) =>
     ["success", "failed", "cancelled"].includes(t.status),
   ).length;
+  const currentIds = new Set(manager.tasks.map((t) => t.id));
+  const visibleHistory = history.filter(
+    (row) =>
+      (historyScope === "all" || currentIds.has(row.id)) &&
+      `${row.name} ${row.title}`
+        .toLowerCase()
+        .includes(historyQuery.toLowerCase()),
+  );
   return (
     <div className={css.shell}>
       <header className={css.header}>
@@ -266,7 +524,7 @@ export function App() {
         <span>{pack.documents.length} 篇素材</span>
       </header>
       <nav className={css.nav}>
-        {["工作台", "编辑与预览", "批量生产", "结果管理"].map((name) => (
+        {["制作记录", "制作预览", "导出进度", "导出历史"].map((name) => (
           <button
             key={name}
             onClick={() => setTab(name)}
@@ -277,6 +535,7 @@ export function App() {
         ))}
       </nav>
       <main className={css.main}>
+        {notice && <p role="status">{notice}</p>}
         {error && (
           <div role="alert" className={css.error}>
             {error}
@@ -331,6 +590,9 @@ export function App() {
                   assets: { "basic/assets/cover.png": blob },
                 });
                 setIndex(0);
+                setActiveCreation(null);
+                await del("d2p-active-creation");
+                setTab("制作预览");
               })
             }
           >
@@ -364,30 +626,45 @@ export function App() {
             <option value="local">本地上传</option>
             <option value="mock">SCM Mock（本地模拟）</option>
           </select>
-          <button disabled={locked} onClick={() => run(true)}>
-            批量生成全部
+          <button disabled={locked} onClick={() => void persistEditing(true)}>
+            保存全部素材
           </button>
         </div>
-        {tab === "工作台" && (
-          <div className={css.grid}>
-            {pack.documents.map((d, i) => (
-              <section className={css.card} key={d.name}>
-                <span className={css.muted}>MARKDOWN 素材</span>
-                <h2>{d.name}</h2>
-                <p>{d.source.length} 字符 · 自动保存至本机</p>
-                <button
-                  onClick={() => {
-                    setIndex(i);
-                    setTab("编辑与预览");
-                  }}
-                >
-                  编辑与预览
-                </button>
-              </section>
-            ))}
-          </div>
+        {tab === "制作记录" && (
+          <CreationLibrary
+            rows={creations}
+            selected={selected}
+            onSelect={setSelected}
+            onOpen={(c) => void openCreation(c)}
+            onGenerate={(rows) => void generateUrls(rows)}
+            onDownload={(c) => void downloadCreation(c)}
+            onCopy={(url) =>
+              void action(async () => navigator.clipboard.writeText(url))
+            }
+            onZip={(rows) =>
+              void action(async () =>
+                download(
+                  await exportZip(resultRows(rows)),
+                  "creation-images.zip",
+                ),
+              )
+            }
+            onManifest={(rows) =>
+              download(
+                new Blob([csv(resultRows(rows))], {
+                  type: "text/csv;charset=utf-8",
+                }),
+                "creation-urls.csv",
+              )
+            }
+            onNew={() => void newCreation()}
+            query={creationQuery}
+            onQuery={setCreationQuery}
+            locked={locked}
+            tasks={manager.tasks}
+          />
         )}
-        {tab === "编辑与预览" && (
+        {tab === "制作预览" && (
           <>
             <div className={css.toolbar}>
               <select
@@ -429,9 +706,9 @@ export function App() {
               </select>
               <button
                 disabled={locked || !parsed.ok}
-                onClick={() => run(false)}
+                onClick={() => void persistEditing()}
               >
-                生成当前长图
+                保存制作
               </button>
             </div>
             <div className={css.editor}>
@@ -487,10 +764,10 @@ export function App() {
             </div>
           </>
         )}
-        {tab === "批量生产" && (
+        {tab === "导出进度" && (
           <>
             <h2>
-              批量生产 {completed} / {manager.tasks.length}
+              导出进度 {completed} / {manager.tasks.length}
             </h2>
             <progress max={manager.tasks.length || 1} value={completed} />
             <div className={css.toolbar}>
@@ -563,58 +840,97 @@ export function App() {
             </table>
           </>
         )}
-        {tab === "结果管理" && (
+        {tab === "导出历史" && (
           <>
+            <h2>导出记录（{history.length}）</h2>
+            <p className={css.muted}>
+              每次成功导出均单独记录，按时间倒序排列，刷新或继续生成不会覆盖历史记录。
+            </p>
             <div className={css.toolbar}>
+              <input
+                aria-label="搜索导出记录"
+                placeholder="搜索标题或文件名"
+                value={historyQuery}
+                onChange={(e) => setHistoryQuery(e.target.value)}
+              />
+              <select
+                aria-label="导出记录范围"
+                value={historyScope}
+                onChange={(e) => setHistoryScope(e.target.value)}
+              >
+                <option value="all">全部记录</option>
+                <option value="current">本次任务</option>
+              </select>
+              <span>当前显示 {visibleHistory.length} 条</span>
               <button
-                disabled={!manager.tasks.length}
+                disabled={!visibleHistory.length}
                 onClick={() =>
                   download(
-                    new Blob([csv(manager.tasks)], {
+                    new Blob([csv(visibleHistory)], {
                       type: "text/csv;charset=utf-8",
                     }),
-                    "results.csv",
+                    "export-history.csv",
                   )
                 }
               >
                 导出 URL 清单
               </button>
               <button
-                disabled={
-                  busy ||
-                  manager.running ||
-                  !manager.tasks.some((t) => t.status === "success")
-                }
+                disabled={busy || manager.running || !visibleHistory.length}
                 onClick={() =>
                   void action(async () =>
-                    download(await exportZip(manager.tasks), "d2p-results.zip"),
+                    download(
+                      await exportZip(visibleHistory),
+                      "d2p-results.zip",
+                    ),
                   )
                 }
               >
                 下载图片 ZIP
               </button>
             </div>
+            {!visibleHistory.length && (
+              <p>
+                {history.length
+                  ? "没有匹配的导出记录。"
+                  : "暂无导出记录，生成图片后会自动保存在这里。"}
+              </p>
+            )}
             <div className={css.grid}>
-              {manager.tasks
-                .filter((t) => t.status === "success")
-                .map((t) => (
-                  <article className={`${css.card} ${css.result}`} key={t.id}>
-                    <h3>{t.name}</h3>
-                    <a href={t.url} target="_blank" rel="noreferrer">
-                      <img src={t.url} alt={t.name} />
-                    </a>
-                    <a href={t.url}>{t.url}</a>
-                    <button
-                      onClick={() =>
-                        void action(async () =>
-                          navigator.clipboard.writeText(t.url!),
-                        )
-                      }
-                    >
-                      复制 URL
-                    </button>
-                  </article>
-                ))}
+              {visibleHistory.map((t) => (
+                <article
+                  data-export-record={t.id}
+                  className={`${css.card} ${css.result}`}
+                  key={t.id}
+                >
+                  <h3>{t.title}</h3>
+                  <p>{t.name}</p>
+                  <p className={css.muted}>
+                    <time dateTime={t.exportedAt ?? undefined}>
+                      {t.exportedAt
+                        ? new Date(t.exportedAt).toLocaleString("zh-CN")
+                        : "历史记录 · 时间未知"}
+                    </time>
+                    <br />
+                    {templates[t.templateId]?.name ?? t.templateId} ·{" "}
+                    {t.format.toUpperCase()}
+                    {t.scale ? ` · ${t.scale}×` : ""} · 成功
+                  </p>
+                  <a href={t.url} target="_blank" rel="noreferrer">
+                    <img loading="lazy" src={t.url} alt={t.title} />
+                  </a>
+                  <a href={t.url}>{t.url}</a>
+                  <button
+                    onClick={() =>
+                      void action(async () =>
+                        navigator.clipboard.writeText(t.url),
+                      )
+                    }
+                  >
+                    复制 URL
+                  </button>
+                </article>
+              ))}
             </div>
           </>
         )}
